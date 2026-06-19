@@ -368,6 +368,17 @@ consent — the bot's write access comes from the maintainer's installation). Th
 > credit too, or only the name-on-the-commit authorship display (the throwaway probe was deleted before
 > it resolved; re-test with a fresh repo + ~24h wait if it matters).
 
+### Maintainer succession (bus factor)
+
+This is a one-maintainer project; the succession plan lives in `README.md` ("Maintainer succession (bus
+factor)"). Key facts: the data source of truth is **`w3c/mathml-docs` `_data/open.yml`** (W3C-owned) and
+reads are backend-free, so the data is never at risk — only the hosted editor's convenience is. The
+personal-account dependencies a successor must re-create are the `dginev` repos + Pages site, the GitHub
+App (ID `3916896`, its client secret + private key), and the stateless Fastify service on the `latexml.rs`
+VM (`intent-api.latexml.rs`, secrets in `/etc/mathml-intent/`). The near-term plan to target
+`w3c/mathml-docs` directly (retiring the `dginev/mathml-intent-open` mirror) is itself the main bus-factor
+reduction.
+
 ## Round-2 feedback (2026-06-04) — landed
 
 All ten round-2 items were implemented (see `w3c_plan.md` for the full plan): WCAG row marking
