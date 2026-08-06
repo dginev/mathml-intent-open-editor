@@ -18,8 +18,8 @@ const fakeStorage = (): Storage => {
 
 const c = (slug: string, mathml: string): Concept => ({
   slug,
-  en: undefined,
   area: undefined,
+  speech: [],
   notations: [{ mathml }],
   links: [],
   alias: [],

@@ -20,14 +20,14 @@ export function contentKey(c?: Concept): string {
   if (!c) return '∅';
   return JSON.stringify([
     c.slug, // the `concept:` key — so a rename counts as a content change
-    c.en ?? null,
+    c.intent ?? null,
     c.area ?? null,
-    c.arity ?? null,
     c.property ?? null,
+    c.comment ?? null,
     c.notations.map((n) => [n.tex ?? null, n.mathml]),
     c.links,
     c.alias,
-    c.speech?.length ? c.speech : null,
+    c.speech.length ? c.speech : null,
   ]);
 }
 

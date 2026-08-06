@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { conceptMatches, matchRank } from './conceptMatch';
-import type { Concept } from '../types';
+import type { Concept, Reading } from '../types';
 
-const c = (o: Partial<Concept>): Concept => ({ slug: '', notations: [], links: [], alias: [], ...o });
+const c = (o: Partial<Concept>): Concept => ({ slug: '', speech: [], notations: [], links: [], alias: [], ...o });
+
+/** Speech with one `default` reading in a language — the common case. */
+const say = (lang: string, text: string): Concept['speech'][number] => ({
+  lang,
+  readings: [{ verbosity: 'default', text } as Reading],
+});
 
 describe('matchRank', () => {
   it('ranks by the matched cell: concept(0) < speech(1) < area(2) < alias(3); -1 = no match', () => {
     expect(matchRank(c({ slug: 'power' }), 'pow')).toBe(0);
-    expect(matchRank(c({ en: 'power of two' }), 'two')).toBe(1);
-    expect(matchRank(c({ speech: [{ lang: 'de', text: 'Potenz' }] }), 'potenz')).toBe(1);
+    expect(matchRank(c({ speech: [say('en', 'power of two')] }), 'two')).toBe(1);
+    expect(matchRank(c({ speech: [say('de', 'Potenz')] }), 'potenz')).toBe(1);
     expect(matchRank(c({ area: 'arithmetic' }), 'arith')).toBe(2);
     expect(matchRank(c({ alias: ['exponent'] }), 'expo')).toBe(3);
     expect(matchRank(c({ slug: 'power' }), 'zzz')).toBe(-1);
@@ -20,12 +26,12 @@ describe('matchRank', () => {
 });
 
 describe('conceptMatches', () => {
-  it('matches slug, en, area, alias, and speech (case-insensitive)', () => {
+  it('matches slug, speech (any language), area, and alias (case-insensitive)', () => {
     expect(conceptMatches(c({ slug: 'additive-inverse' }), 'INVERSE')).toBe(true);
-    expect(conceptMatches(c({ en: 'additive inverse of $1' }), 'inverse of')).toBe(true);
+    expect(conceptMatches(c({ speech: [say('en', 'additive inverse of $value')] }), 'inverse of')).toBe(true);
     expect(conceptMatches(c({ area: 'abstract algebra' }), 'algebra')).toBe(true);
     expect(conceptMatches(c({ alias: ['opposite'] }), 'oppos')).toBe(true);
-    expect(conceptMatches(c({ speech: [{ lang: 'de', text: 'additives Inverses' }] }), 'inverses')).toBe(true);
+    expect(conceptMatches(c({ speech: [say('de', 'additives Inverses')] }), 'inverses')).toBe(true);
   });
 
   it('returns false when nothing matches, true for an empty query', () => {

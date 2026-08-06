@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { loadDictionary } from './loadDictionary';
 import type { EditCache } from './editCache';
-import type { Concept } from '../types';
+import { conceptArity, type Concept } from '../types';
 import { w3cYaml } from '../test/dictFixture';
 
 const doc = (entries: Record<string, string>) =>
-  w3cYaml(Object.entries(entries).map(([concept, m]) => ({ concept, mathml: [m] })));
+  w3cYaml(Object.entries(entries).map(([concept, m]) => ({ concept, notations: [{ mathml: m }] })));
 
 // Mock fetch keyed by URL: base (main) vs the user's branch.
 function fetchFor(base: Record<string, string>, branch?: Record<string, string>) {
@@ -29,8 +29,8 @@ const args = (extra: Partial<Parameters<typeof loadDictionary>[0]> = {}) => ({
 });
 
 const editRec = (slug: string, value: string, base: string | null): EditCache[string] => ({
-  value: { slug, en: undefined, area: undefined, notations: [{ mathml: value }], links: [], alias: [] } as Concept,
-  baseAtEdit: base ? ({ slug, notations: [{ mathml: base }], links: [], alias: [] } as Concept) : null,
+  value: { slug, area: undefined, speech: [], notations: [{ mathml: value }], links: [], alias: [] } as Concept,
+  baseAtEdit: base ? ({ slug, speech: [], notations: [{ mathml: base }], links: [], alias: [] } as Concept) : null,
 });
 
 describe('loadDictionary', () => {
@@ -68,7 +68,7 @@ describe('loadDictionary', () => {
 
   it('drops a concept the user deleted locally (null tombstone)', async () => {
     const edits: EditCache = {
-      'power#': { value: null, baseAtEdit: { slug: 'power', notations: [{ mathml: 'p' }], links: [], alias: [] } as Concept },
+      'power#': { value: null, baseAtEdit: { slug: 'power', speech: [], notations: [{ mathml: 'p' }], links: [], alias: [] } as Concept },
     };
     const { concepts, conflicts } = await loadDictionary(
       args({ fetchImpl: fetchFor({ power: 'p', sum: 's' }), edits }),
@@ -79,8 +79,8 @@ describe('loadDictionary', () => {
 
   it('keeps overloaded concepts (same name, different arity) as distinct rows', async () => {
     const yaml = w3cYaml([
-      { concept: 'disjoint-union', arity: 1, mathml: ['<math>u1</math>'] },
-      { concept: 'disjoint-union', arity: 2, mathml: ['<math>u2</math>'] },
+      { concept: 'disjoint-union', intent: 'disjoint-union($a)', notations: [{ mathml: '<math>u1</math>' }] },
+      { concept: 'disjoint-union', intent: 'disjoint-union($a,$b)', notations: [{ mathml: '<math>u2</math>' }] },
     ]);
     const fetchImpl = (async (url: string) =>
       url.includes('/main/')
@@ -89,6 +89,6 @@ describe('loadDictionary', () => {
 
     const { concepts } = await loadDictionary(args({ fetchImpl }));
     expect(concepts).toHaveLength(2); // not collapsed by name
-    expect(concepts.map((c) => c.arity)).toEqual([1, 2]); // canonical (concept, arity) order
+    expect(concepts.map((c) => conceptArity(c))).toEqual([1, 2]); // canonical (concept, arity) order
   });
 });

@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { aliasWarnings, buildConceptIndex, relatedConcepts } from './conceptIndex';
 import type { Concept } from '../types';
 
-const c = (slug: string, extra: Partial<Concept> = {}): Concept => ({
-  slug,
-  notations: [],
-  links: [],
-  alias: [],
-  ...extra,
-});
+// `arity` here is a convenience that generates an `intent` signature of that many args (arity is
+// derived from `intent` in the model). All other fields pass through unchanged.
+const c = (slug: string, extra: Partial<Concept> & { arity?: number } = {}): Concept => {
+  const { arity, ...rest } = extra;
+  const intent = arity && arity > 0 ? `${slug}(${Array.from({ length: arity }, (_, i) => `$a${i}`).join(',')})` : undefined;
+  return { slug, intent, speech: [], notations: [], links: [], alias: [], ...rest };
+};
 
 const dict: Concept[] = [
   c('disjoint-union', { arity: 1, area: 'set theory' }),

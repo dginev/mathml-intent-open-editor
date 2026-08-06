@@ -1,39 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import { parseDictionary } from './parse';
+import { conceptArity, speechText } from '../types';
 import { w3cYaml } from '../test/dictFixture';
 
-describe('parseDictionary (W3C open.yml schema)', () => {
-  it('flattens concepts→intents into Concept[] with mapped fields', () => {
+describe('parseDictionary (open.yml schema)', () => {
+  it('reads a flat list of records into Concept[] with mapped fields', () => {
     const yaml = w3cYaml([
       {
         concept: 'abelian-category',
-        arity: 0,
-        en: 'abelian category',
         property: 'symbol',
         area: 'category theory',
-        mathml: ["<math><mi intent='abelian-category'>Ab</mi></math>"],
+        speech: { en: [{ default: 'abelian category' }] },
+        notations: [{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }],
         urls: ['https://example.org/a'],
       },
-      { concept: 'power', arity: 2, en: '$1 to the $2', alias: ['exponentiation'] },
+      {
+        concept: 'power',
+        intent: 'power($b,$e)',
+        speech: { en: [{ default: '$b to the $e' }] },
+        alias: ['exponentiation'],
+        notations: [{ mathml: "<msup intent='power($b,$e)'><mi arg='b'>x</mi><mi arg='e'>n</mi></msup>" }],
+      },
     ]);
     const concepts = parseDictionary(yaml);
 
     expect(concepts.map((c) => c.slug)).toEqual(['abelian-category', 'power']);
     const ab = concepts[0];
-    expect(ab.arity).toBe(0);
+    expect(ab.intent).toBeUndefined(); // arity-0 → no intent
+    expect(conceptArity(ab)).toBe(0); // arity is derived
     expect(ab.property).toBe('symbol');
     expect(ab.area).toBe('category theory');
-    // The old `mathml:` list reads into the notations model (one entry per rendering).
+    expect(speechText(ab, 'en')).toBe('abelian category');
     expect(ab.notations).toEqual([{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }]);
     expect(ab.links).toEqual(['https://example.org/a']); // urls → links
     expect(concepts[1].alias).toEqual(['exponentiation']);
+    expect(conceptArity(concepts[1])).toBe(2); // from intent power($b,$e)
   });
 
-  it('reads the new notations: shape — a list of {tex?, mathml} hashes', () => {
+  it('reads the notations: shape — a list of {tex?, mathml} hashes', () => {
     const yaml = w3cYaml([
       {
         concept: 'power',
-        arity: 2,
+        intent: 'power($b,$e)',
         notations: [
           { tex: '\\arg{b}{x}^{\\arg{e}{n}}', mathml: "<msup intent='power($b,$e)'><mi>x</mi><mi>n</mi></msup>" },
           { mathml: '<mrow><mi>pow</mi></mrow>' }, // raw-MathML-authored extra: no tex
@@ -47,17 +55,50 @@ describe('parseDictionary (W3C open.yml schema)', () => {
     ]);
   });
 
-  it('collects non-en ISO 639-1 keys into speech, leaving en and unmodeled keys alone', () => {
+  it('reads the speech: map into per-language readings, leaving unmodeled keys in raw', () => {
     const yaml = w3cYaml([
-      { concept: 'x', en: 'ex', de: 'Iks', fr: 'ixe', notationa: 'mo ′' },
+      {
+        concept: 'x',
+        speech: { en: [{ default: 'ex' }], de: [{ default: 'Iks' }], fr: [{ default: 'ixe' }] },
+        notationa: 'mo ′',
+      },
     ]);
     const [c] = parseDictionary(yaml);
-    expect(c.en).toBe('ex'); // English stays in its own field
+    expect(speechText(c, 'en')).toBe('ex');
     expect(c.speech).toEqual([
-      { lang: 'de', text: 'Iks' },
-      { lang: 'fr', text: 'ixe' },
+      { lang: 'en', readings: [{ verbosity: 'default', text: 'ex' }] },
+      { lang: 'de', readings: [{ verbosity: 'default', text: 'Iks' }] },
+      { lang: 'fr', readings: [{ verbosity: 'default', text: 'ixe' }] },
     ]);
-    expect(c.raw?.notationa).toBe('mo ′'); // a non-language key is not mistaken for speech
+    expect(c.raw?.notationa).toBe('mo ′'); // a non-modeled key is preserved in raw
+  });
+
+  it('reads a conditioned + multi-verbosity speech reading list', () => {
+    const yaml = w3cYaml([
+      {
+        concept: 'rising-factorial',
+        intent: 'rising-factorial($base,$power)',
+        speech: {
+          en: [
+            { verbose: '$base to the rising $power' },
+            { terse: '$base rising $power', condition: '$base is a variable' },
+            { default: 'rising factorial' },
+          ],
+        },
+      },
+    ]);
+    const [c] = parseDictionary(yaml);
+    expect(c.speech).toEqual([
+      {
+        lang: 'en',
+        readings: [
+          { verbosity: 'verbose', text: '$base to the rising $power' },
+          { verbosity: 'terse', text: '$base rising $power', condition: '$base is a variable' },
+          { verbosity: 'default', text: 'rising factorial' },
+        ],
+      },
+    ]);
+    expect(speechText(c, 'en')).toBe('rising factorial'); // the default reading is the display text
   });
 
   it('de-duplicates urls and aliases into sets, preserving first-seen order', () => {
@@ -73,26 +114,15 @@ describe('parseDictionary (W3C open.yml schema)', () => {
     expect(c.alias).toEqual(['ex', 'eks']);
   });
 
-  it('pairs an old-shape scalar tex: onto the first notation', () => {
-    const yaml = w3cYaml([
-      { concept: 'additive-inverse', arity: 1, tex: '-\\arg{x}{n}', mathml: ['<math><mi>-n</mi></math>'] },
-    ]);
+  it('keeps the original record in raw for lossless round-trip', () => {
+    const yaml = w3cYaml([{ concept: 'x', notationa: 'mo ′', comment: 'a note' }]);
     const [c] = parseDictionary(yaml);
-    expect(c.notations).toEqual([{ tex: '-\\arg{x}{n}', mathml: '<math><mi>-n</mi></math>' }]);
-    // …and a (degenerate) tex with no mathml still survives the read.
-    const [bare] = parseDictionary(w3cYaml([{ concept: 'x', tex: '\\mathrm{x}' }]));
-    expect(bare.notations).toEqual([{ tex: '\\mathrm{x}', mathml: '' }]);
-  });
-
-  it('keeps the original entry in raw for lossless round-trip', () => {
-    const yaml = w3cYaml([{ concept: 'x', notationa: 'mo ′', comments: 'legacy' }]);
-    const [c] = parseDictionary(yaml);
+    expect(c.comment).toBe('a note');
     expect(c.raw?.notationa).toBe('mo ′');
-    expect(c.raw?.comments).toBe('legacy');
   });
 
-  it('tolerates an empty / structureless document', () => {
+  it('tolerates an empty / non-list document', () => {
     expect(parseDictionary('')).toEqual([]);
-    expect(parseDictionary('concepts: []')).toEqual([]);
+    expect(parseDictionary('concepts: []')).toEqual([]); // a mapping, not a list → nothing
   });
 });

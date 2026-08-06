@@ -23,8 +23,8 @@ export type BaseMap = ReadonlyMap<string, Concept>;
 function baselineId(c: Concept): string {
   const raw = c.raw;
   if (raw && typeof raw.concept === 'string') {
-    const arity = typeof raw.arity === 'number' ? raw.arity : undefined;
-    return conceptId({ slug: raw.concept, arity });
+    const intent = typeof raw.intent === 'string' ? raw.intent : undefined;
+    return conceptId({ slug: raw.concept, intent });
   }
   return conceptId(c);
 }

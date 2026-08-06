@@ -10,21 +10,21 @@ vi.mock('../render/temmlEngine', async () => {
 
 import { NotationEditor } from './NotationEditor';
 import { buildConceptIndex } from '../data/conceptIndex';
-import type { Concept } from '../types';
+import { conceptArity, speechText, type Concept } from '../types';
 
 const index = buildConceptIndex([
-  { slug: 'union', arity: 2, area: 'set theory', alias: ['cup'], notations: [], links: [] },
-  { slug: 'disjoint-union', arity: 2, area: 'set theory', notations: [], links: [], alias: [] },
-  { slug: 'power', arity: 2, alias: ['exponentiation'], notations: [], links: [] },
+  { slug: 'union', intent: 'union($a,$b)', area: 'set theory', alias: ['cup'], speech: [], notations: [], links: [] },
+  { slug: 'disjoint-union', intent: 'disjoint-union($a,$b)', area: 'set theory', speech: [], notations: [], links: [], alias: [] },
+  { slug: 'power', intent: 'power($a,$b)', alias: ['exponentiation'], speech: [], notations: [], links: [] },
 ]);
 
-const blank: Concept = { slug: '', notations: [], links: [], alias: [] };
+const blank: Concept = { slug: '', speech: [], notations: [], links: [], alias: [] };
 
 const base: Concept = {
   slug: 'additive-inverse',
-  en: 'additive inverse of $x',
+  intent: 'additive-inverse($x)',
+  speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: 'additive inverse of $x' }] }],
   area: 'algebra',
-  arity: 1,
   property: 'prefix',
   notations: [{ mathml: '<math><mi>old</mi></math>' }],
   links: ['https://example.org/a'],
@@ -56,7 +56,8 @@ describe('NotationEditor', () => {
     const c = onSave.mock.calls[0][0] as Concept;
     expect(c.notations[0].mathml).toContain('intent="additive-inverse($x)"');
     expect(c.notations[0].tex).toBe('-\\arg{x}{n}');
-    expect(c.arity).toBe(1); // other fields carried through
+    expect(c.intent).toBe('additive-inverse($x)'); // derived from the notation
+    expect(conceptArity(c)).toBe(1); // other fields carried through
   });
 
   it('saves edits to other fields while keeping the existing notation when TeX is blank', async () => {
@@ -69,7 +70,7 @@ describe('NotationEditor', () => {
     fireEvent.click(screen.getByTestId('save'));
 
     const c = onSave.mock.calls[0][0] as Concept;
-    expect(c.en).toBe('the additive inverse of $x');
+    expect(speechText(c, 'en')).toBe('the additive inverse of $x');
     expect(c.notations).toEqual(base.notations); // notation untouched (TeX left blank)
   });
 
@@ -85,8 +86,9 @@ describe('NotationEditor', () => {
     fireEvent.click(screen.getByTestId('save'));
 
     const c = onSave.mock.calls[0][0] as Concept;
-    expect(c.en).toBe('additive inverse of $x'); // English untouched
-    expect(c.speech).toEqual([{ lang: 'de', text: 'additives Inverses von $x' }]);
+    expect(speechText(c, 'en')).toBe('additive inverse of $x'); // English untouched
+    expect(speechText(c, 'de')).toBe('additives Inverses von $x'); // the new language, as a default reading
+    expect(c.speech.map((s) => s.lang)).toEqual(['en', 'de']);
   });
 
   it('warns about an invalid ISO 639-1 language code', () => {
@@ -281,7 +283,7 @@ describe('NotationEditor', () => {
   });
 
   it('titles the editor "Add concept" for a brand-new (slug-less) row', () => {
-    render(<NotationEditor concept={{ slug: '', notations: [], links: [], alias: [] }} onSave={vi.fn()} />);
+    render(<NotationEditor concept={{ slug: '', speech: [], notations: [], links: [], alias: [] }} onSave={vi.fn()} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Add concept');
   });
 
@@ -389,8 +391,11 @@ describe('NotationEditor', () => {
 describe('NotationEditor — read-only view (the row ⤢ reuses the editor)', () => {
   const rich: Concept = {
     slug: 'power',
-    arity: 2,
-    en: 'power of $base to $exponent',
+    intent: 'power($base,$exponent)',
+    speech: [
+      { lang: 'en', readings: [{ verbosity: 'default', text: 'power of $base to $exponent' }] },
+      { lang: 'de', readings: [{ verbosity: 'default', text: 'Potenz' }] },
+    ],
     area: 'arithmetic',
     property: 'function',
     notations: [
@@ -399,7 +404,6 @@ describe('NotationEditor — read-only view (the row ⤢ reuses the editor)', ()
     ],
     links: ['https://w3.org/'],
     alias: ['exponentiation'],
-    speech: [{ lang: 'de', text: 'Potenz' }],
   };
 
   it('renders every field as read-only display — no inputs anywhere, only a Close button', () => {
@@ -434,7 +438,13 @@ describe('NotationEditor — read-only view (the row ⤢ reuses the editor)', ()
   });
 
   it('omits empty optional sections (no aliases/links → those blocks are hidden)', () => {
-    const minimal: Concept = { slug: 'plain', arity: 0, en: 'plain', notations: [{ mathml: '<math><mi>p</mi></math>' }], links: [], alias: [] };
+    const minimal: Concept = {
+      slug: 'plain',
+      speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: 'plain' }] }],
+      notations: [{ mathml: '<math><mi>p</mi></math>' }],
+      links: [],
+      alias: [],
+    };
     render(<NotationEditor concept={minimal} readOnly onCancel={vi.fn()} />);
     expect(screen.queryByTestId('alias-list')).toBeNull();
     expect(screen.queryByTestId('link-list')).toBeNull();
@@ -445,8 +455,10 @@ describe('NotationEditor — read-only view (the row ⤢ reuses the editor)', ()
   const richBase: Concept = {
     ...rich,
     property: 'indexed',
-    en: 'power of $1 to $2',
-    speech: [{ lang: 'de', text: 'alte Potenz' }],
+    speech: [
+      { lang: 'en', readings: [{ verbosity: 'default', text: 'power of $1 to $2' }] },
+      { lang: 'de', readings: [{ verbosity: 'default', text: 'alte Potenz' }] },
+    ],
     alias: [],
     links: ['https://w3.org/', 'https://old.example/'],
   };
@@ -483,7 +495,13 @@ describe('NotationEditor — read-only view (the row ⤢ reuses the editor)', ()
   });
 
   it('hides the TeX-source panel for a notation authored as raw MathML (no tex)', () => {
-    const noTex: Concept = { slug: 'x', arity: 0, en: 'x', notations: [{ mathml: '<math><mi>x</mi></math>' }], links: [], alias: [] };
+    const noTex: Concept = {
+      slug: 'x',
+      speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: 'x' }] }],
+      notations: [{ mathml: '<math><mi>x</mi></math>' }],
+      links: [],
+      alias: [],
+    };
     render(<NotationEditor concept={noTex} readOnly onCancel={vi.fn()} />);
     expect(screen.queryByTestId('tex-source')).toBeNull();
   });

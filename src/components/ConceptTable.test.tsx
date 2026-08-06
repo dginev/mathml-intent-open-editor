@@ -14,7 +14,7 @@ beforeAll(() => {
 
 const concept = (slug: string, extra: Partial<Concept> = {}): Concept => ({
   slug,
-  en: `speech for ${slug}`,
+  speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: `speech for ${slug}` }] }],
   notations: [],
   links: [],
   alias: [],
@@ -49,8 +49,8 @@ describe('ConceptTable status column', () => {
 
 describe('ConceptTable speech-language dropdown', () => {
   const bgData = [
-    concept('power', { speech: [{ lang: 'bg', text: 'степен' }] }),
-    concept('ratio'), // no bg template → falls back to English
+    concept('power', { speech: [{ lang: 'bg', readings: [{ verbosity: 'default', text: 'степен' }] }] }),
+    concept('ratio'), // no bg template → empty cell when bg is selected
   ];
 
   it('renders a "Speech hint" label with a bare-code language select beside it', () => {

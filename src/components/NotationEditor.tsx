@@ -8,7 +8,8 @@ import { MathMLSource, MathMLSourceDiff } from './MathMLSource';
 import { IconButton, InfoPopover, RowControls } from './ui';
 import { aliasWarnings, relatedConcepts, type ConceptIndex } from '../data/conceptIndex';
 import { uniq } from '../uniq';
-import type { Concept, Notation } from '../types';
+import type { Concept, Notation, Reading, SpeechLang } from '../types';
+import { readingFor, speechText } from '../types';
 
 /** One editable speech template row: a stable id, an ISO 639-1 language code, the template, and edit state. */
 type SpeechRow = { id: number; lang: string; text: string; editing: boolean };
@@ -410,7 +411,6 @@ export function NotationEditor({
   const isNew = concept.slug === ''; // a brand-new row (opened via "Add entry") starts slug-less
   const [slug, setSlug] = useState(concept.slug);
   const [area, setArea] = useState(concept.area ?? '');
-  const [arity, setArity] = useState(concept.arity != null ? String(concept.arity) : '');
   const [property, setProperty] = useState(concept.property ?? '');
   const [tex, setTex] = useState(concept.notations[0]?.tex ?? '');
 
@@ -422,12 +422,15 @@ export function NotationEditor({
     () => concept.alias.map((value, i) => ({ id: i, value, editing: false })),
     blankEntry,
   );
-  // Speech is a list of language-keyed templates; `en` is just the first entry, the rest are extra languages.
+  // One editable text per language — its `default` reading (the common case). `en` is the anchor row;
+  // any non-default readings (verbose/terse/condition) round-trip untouched via the model on save.
   const [speechRows, speechOps] = useRowList<SpeechRow>(() => {
     const rows: SpeechRow[] = [];
-    if (concept.en != null) rows.push({ id: 0, lang: 'en', text: concept.en, editing: false });
-    for (const s of concept.speech ?? [])
-      rows.push({ id: rows.length, lang: s.lang, text: s.text, editing: false });
+    if (concept.speech.some((s) => s.lang === 'en'))
+      rows.push({ id: 0, lang: 'en', text: speechText(concept, 'en'), editing: false });
+    for (const s of concept.speech)
+      if (s.lang !== 'en')
+        rows.push({ id: rows.length, lang: s.lang, text: readingFor(concept, s.lang)?.text ?? '', editing: false });
     return rows;
   }, blankSpeech);
 
@@ -518,22 +521,40 @@ export function NotationEditor({
       if (out == null || out === '') return; // empty extras drop out
       notations.push(r.mode === 'tex' ? { tex: r.tex.trim(), mathml: out } : { mathml: out });
     });
-    const n = Number(arity);
-    // Speech rows split back into `en` (English) + `speech` (other valid, non-empty ISO 639-1 languages).
-    const en = speechRows.find((r) => r.lang.trim() === 'en')?.text.trim() || undefined;
+    // Intent is derived from the primary notation's root intent (`concept($args)`); omitted for a bare
+    // arity-0 concept. Falls back to the concept's own intent while nothing new is authored.
+    let intent = concept.intent;
+    if (primaryOut != null && primaryOut !== '') {
+      const ri = primaryOut.match(/intent="([^"]*)"/)?.[1];
+      intent = ri && ri.includes('(') ? ri : undefined;
+    }
+    // Each speech row is a language's `default` reading; any non-default readings (verbose/terse/
+    // condition) already on that language are preserved from the current model.
     const speech = speechRows
-      .filter((r) => {
+      .map((r): SpeechLang | null => {
         const lang = r.lang.trim();
-        return lang !== '' && lang !== 'en' && r.text.trim() !== '' && ISO6391.validate(lang);
+        const text = r.text.trim();
+        if (lang === '' || !ISO6391.validate(lang)) return null;
+        const orig = concept.speech.find((s) => s.lang === lang);
+        let readings: Reading[];
+        if (orig) {
+          readings = orig.readings.flatMap((rd) =>
+            rd.verbosity === 'default' ? (text !== '' ? [{ ...rd, text }] : []) : [rd],
+          );
+          if (text !== '' && !orig.readings.some((rd) => rd.verbosity === 'default'))
+            readings.push({ verbosity: 'default', text });
+        } else {
+          readings = text !== '' ? [{ verbosity: 'default', text }] : [];
+        }
+        return readings.length ? { lang, readings } : null;
       })
-      .map((r) => ({ lang: r.lang.trim(), text: r.text.trim() }));
+      .filter((s): s is SpeechLang => s !== null);
     return {
-      ...concept, // carries `raw` for lossless serialization
+      ...concept, // carries `raw` (and `comment`) for lossless serialization
       slug: slug.trim(),
-      en,
+      intent,
       speech,
       area: area.trim() || undefined,
-      arity: arity.trim() === '' || Number.isNaN(n) ? undefined : n,
       property: property.trim() || undefined,
       notations,
       // Links/aliases are sets — drop blanks and de-duplicate (first occurrence wins).
@@ -548,7 +569,6 @@ export function NotationEditor({
   const contentState = JSON.stringify([
     slug,
     area,
-    arity,
     property,
     tex,
     rawMathml,
@@ -575,8 +595,10 @@ export function NotationEditor({
   // The main version's speech, keyed by language (English under `en`) — the "before" side of a speech diff.
   const baseSpeech = useMemo(() => {
     const m = new Map<string, string>();
-    if (base?.en != null) m.set('en', base.en);
-    for (const s of base?.speech ?? []) m.set(s.lang, s.text);
+    for (const s of base?.speech ?? []) {
+      const def = s.readings.find((r) => r.verbosity === 'default') ?? s.readings[0];
+      if (def) m.set(s.lang, def.text);
+    }
     return m;
   }, [base]);
   // The main version's links/aliases as sets — to mark added items (green) and list removed ones (red).
@@ -609,7 +631,7 @@ export function NotationEditor({
         {readOnly ? (
           <>
             {viewField('Concept', slug, base?.slug, 'slug-value')}
-            {viewField('Arity', arity, base?.arity != null ? String(base.arity) : '')}
+            {viewField('Intent', concept.intent ?? '', base?.intent ?? '', 'intent-value')}
             {viewField('Area', area, base?.area, 'area-value')}
             {viewField('Properties', property, base?.property, 'property-value')}
           </>
@@ -629,10 +651,6 @@ export function NotationEditor({
                 onChange={(e) => setSlug(e.target.value)}
               />
             </div>
-            <label className="field">
-              <span>Arity</span>
-              <input type="number" min={0} value={arity} onChange={(e) => setArity(e.target.value)} />
-            </label>
             <label className="field">
               <span>Area</span>
               <input value={area} onChange={(e) => setArea(e.target.value)} />
