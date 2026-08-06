@@ -1,21 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadSeed } from './loadSeed';
+import { speechText } from '../types';
 import { w3cYaml } from '../test/dictFixture';
 
 const SAMPLE_YAML = w3cYaml([
   {
     concept: 'power',
-    en: '$1 to the $2',
+    intent: 'power($base,$exponent)',
+    speech: { en: [{ default: '$base to the $exponent' }] },
     area: 'arithmetic',
-    mathml: ["<math><msup><mi arg='1'>x</mi><mi arg='2'>n</mi></msup></math>"],
+    notations: [
+      { mathml: "<math><msup intent='power($base,$exponent)'><mi arg='base'>x</mi><mi arg='exponent'>n</mi></msup></math>" },
+    ],
     urls: ['https://en.wikipedia.org/wiki/Exponentiation'],
     alias: ['exponentiation'],
   },
   {
     concept: 'abelian-category',
-    en: 'abelian category',
+    speech: { en: [{ default: 'abelian category' }] },
     area: '',
-    mathml: "<math><mi intent='abelian-category'>Ab</mi></math>", // scalar → one-element array
+    notations: [{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }],
   },
 ]);
 
@@ -29,18 +33,19 @@ function mockFetch(body: string, ok = true) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('loadSeed', () => {
-  it('normalizes the loose seed shape into Concept[]', async () => {
+  it('normalizes the seed shape into Concept[]', async () => {
     mockFetch(SAMPLE_YAML);
     const concepts = await loadSeed();
 
     expect(concepts).toHaveLength(2);
     const power = concepts.find((c) => c.slug === 'power')!;
-    expect(power.en).toBe('$1 to the $2');
+    expect(speechText(power, 'en')).toBe('$base to the $exponent');
+    expect(power.intent).toBe('power($base,$exponent)');
     expect(power.area).toBe('arithmetic');
     expect(power.alias).toEqual(['exponentiation']);
     expect(power.links).toEqual(['https://en.wikipedia.org/wiki/Exponentiation']); // from `urls`
 
-    // A scalar `mathml` becomes a one-element array; empty `area` becomes undefined.
+    // empty `area` becomes undefined; the notations list carries the rendering.
     const ab = concepts.find((c) => c.slug === 'abelian-category')!;
     expect(ab.notations).toEqual([{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }]);
     expect(ab.area).toBeUndefined();

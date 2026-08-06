@@ -15,6 +15,7 @@ import type { Concept } from '../types';
 
 const c = (slug: string, mathml = '<math><mi>x</mi></math>'): Concept => ({
   slug,
+  speech: [],
   notations: [{ mathml }],
   links: [],
   alias: [],
@@ -46,9 +47,7 @@ describe('classifyChange', () => {
 describe('effectiveYaml', () => {
   it('omits pending deletions from the submitted content', () => {
     const yaml = effectiveYaml([c('alpha'), c('beta')], new Set(['beta#']));
-    const slugs = (parse(yaml) as { concepts: { intents: { concept: string }[] }[] }).concepts[0].intents.map(
-      (e) => e.concept,
-    );
+    const slugs = (parse(yaml) as Array<{ concept: string }>).map((e) => e.concept);
     expect(slugs).toEqual(['alpha']); // beta dropped
   });
 });

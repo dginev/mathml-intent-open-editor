@@ -266,7 +266,7 @@ export default function App() {
   const openCreate = useCallback(() => {
     if (!gated()) return;
     setCreating(true);
-    setEditing({ slug: '', notations: [], links: [], alias: [] });
+    setEditing({ slug: '', notations: [], links: [], alias: [], speech: [] });
   }, [gated]);
 
   const closeModal = useCallback(() => {

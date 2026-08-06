@@ -2,12 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { loadPrReview } from './loadPrReview';
 import { classifyChange } from './pendingChanges';
 import { conceptId } from './conceptId';
-import type { Concept } from '../types';
+import { speechText, type Concept } from '../types';
 
-/** A minimal `open.yml` from `(concept, en)` pairs — enough to exercise the parser + diff. */
+/** A minimal `open.yml` (flat list) from `(concept, en)` pairs — enough to exercise the parser + diff. */
 const yaml = (entries: Array<[string, string]>) =>
-  `concepts:\n  - title: Open Concepts\n    intents:\n` +
-  entries.map(([concept, en]) => `    - concept: ${concept}\n      arity: 0\n      en: ${en}\n`).join('');
+  entries.map(([concept, en]) => `- concept: ${concept}\n  speech:\n    en:\n      - default: ${en}\n`).join('');
 
 const MAIN = yaml([
   ['alpha', 'alpha'],
@@ -45,7 +44,7 @@ describe('loadPrReview', () => {
     const { concepts, base, deletedIds } = await loadPrReview(args);
 
     // gamma (in main, gone from the PR) is the only deletion.
-    expect([...deletedIds]).toEqual([conceptId({ slug: 'gamma', arity: 0 })]);
+    expect([...deletedIds]).toEqual([conceptId({ slug: 'gamma' })]);
     // Display set = proposed rows + the held-for-display deleted row, canonical order.
     expect(concepts.map((c) => c.slug)).toEqual(['alpha', 'beta', 'delta', 'gamma']);
     expect(base.map((c) => c.slug)).toEqual(['alpha', 'beta', 'gamma']);
@@ -83,8 +82,8 @@ describe('loadPrReview', () => {
     expect((closedFetch as ReturnType<typeof vi.fn>).mock.calls.some(([u]) => String(u).includes('/compare/basesha...headsha'))).toBe(true);
     // …and the diff is head-vs-branch-point (same shape as the open case), NOT vs the drifted present.
     expect(base.map((c) => c.slug)).toEqual(['alpha', 'beta', 'gamma']);
-    expect(base.find((c) => c.slug === 'alpha')!.en).toBe('alpha'); // not the PRESENT-DAY DRIFT
-    expect([...deletedIds]).toEqual([conceptId({ slug: 'gamma', arity: 0 })]);
+    expect(speechText(base.find((c) => c.slug === 'alpha')!, 'en')).toBe('alpha'); // not the PRESENT-DAY DRIFT
+    expect([...deletedIds]).toEqual([conceptId({ slug: 'gamma' })]);
     expect(concepts.map((c) => c.slug)).toEqual(['alpha', 'beta', 'delta', 'gamma']);
   });
 });

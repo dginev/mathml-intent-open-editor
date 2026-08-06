@@ -1,4 +1,5 @@
 import type { Concept } from '../types';
+import { conceptArity } from '../types';
 
 /**
  * Lightweight, dictionary-wide indexes that power the editor's *authoring helpers* — the
@@ -47,7 +48,8 @@ export function buildConceptIndex(concepts: readonly Concept[]): ConceptIndex {
       info = { slug, arities: [], area: c.area };
       bySlug.set(slug, info);
     }
-    if (c.arity != null && !info.arities.includes(c.arity)) info.arities.push(c.arity);
+    const arity = conceptArity(c);
+    if (!info.arities.includes(arity)) info.arities.push(arity);
     if (!info.area && c.area) info.area = c.area;
 
     for (const a of c.alias) {

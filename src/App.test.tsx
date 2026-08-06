@@ -30,14 +30,19 @@ const jwtExp = (days: number): string => {
 
 const base: Concept = {
   slug: 'power',
-  arity: 2,
-  en: '$1 to the $2',
+  intent: 'power($a,$b)',
+  speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: '$1 to the $2' }] }],
   notations: [{ mathml: '<math><msup><mi>x</mi><mn>2</mn></msup></math>' }],
   links: [],
   alias: [],
 };
-const edited: Concept = { ...base, en: '$1 raised to $2' };
-const baseYaml = w3cYaml([{ concept: 'power', arity: 2, en: base.en, mathml: base.notations.map((n) => n.mathml) }]);
+const edited: Concept = {
+  ...base,
+  speech: [{ lang: 'en', readings: [{ verbosity: 'default', text: '$1 raised to $2' }] }],
+};
+const baseYaml = w3cYaml([
+  { concept: 'power', intent: 'power($a,$b)', speech: { en: [{ default: '$1 to the $2' }] }, notations: base.notations },
+]);
 
 const textRes = (status: number, text: string) => ({ ok: status < 400, status, text: async () => text });
 const jsonRes = (obj: unknown) => ({ ok: true, status: 200, json: async () => obj, text: async () => JSON.stringify(obj) });
@@ -116,7 +121,12 @@ describe('App (integration: save/branch flow)', () => {
   it('hydrates the speech language from ?lang= and shows that language column', async () => {
     // A dictionary carrying a Bulgarian template alongside English.
     const bgYaml = w3cYaml([
-      { concept: 'power', arity: 2, en: base.en, bg: 'степен', mathml: base.notations.map((n) => n.mathml) },
+      {
+        concept: 'power',
+        intent: 'power($a,$b)',
+        speech: { en: [{ default: '$1 to the $2' }], bg: [{ default: 'степен' }] },
+        notations: base.notations,
+      },
     ]);
     vi.stubGlobal(
       'fetch',

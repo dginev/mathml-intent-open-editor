@@ -3,6 +3,7 @@ import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from '
 import { useVirtualizer } from '@tanstack/react-virtual';
 import ISO6391 from 'iso-639-1';
 import type { Concept } from '../types';
+import { speechText } from '../types';
 import { conceptId } from '../data/conceptId';
 import type { ChangeKind } from '../data/pendingChanges';
 import { linkDomain } from './linkDomain';
@@ -97,12 +98,8 @@ const columns = [
     cell: ({ row, table }) => {
       const meta = table.options.meta as TableMeta | undefined;
       const lang = meta?.speechLang ?? 'en';
-      const c = row.original;
-      if (lang !== 'en') {
-        const text = c.speech?.find((s) => s.lang === lang)?.text;
-        return text != null && text.trim() !== '' ? <span lang={lang}>{text}</span> : null;
-      }
-      return <span lang="en">{c.en}</span>;
+      const text = speechText(row.original, lang);
+      return text.trim() !== '' ? <span lang={lang}>{text}</span> : null;
     },
   }),
   columnHelper.accessor('area', { header: 'Area', size: 180 }),

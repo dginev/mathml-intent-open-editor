@@ -1,4 +1,3 @@
-import ISO6391 from 'iso-639-1';
 import type { Concept } from '../types';
 
 /**
@@ -17,34 +16,31 @@ import type { Concept } from '../types';
  *   {@link changedFields} then highlights, inside the view, exactly which fields an edit touched.
  */
 
-/** The `raw` keys we model through dedicated fields; the rest are "extra" (e.g. comments, legacy notation*). */
+/** The `raw` keys we model through dedicated fields; the rest are "extra" (legacy notation*, comments). */
 export const MODELED_RAW_KEYS = new Set([
   'concept',
-  'arity',
-  'en',
+  'intent',
+  'speech',
   'area',
   'property',
+  'comment',
   'notations',
-  'mathml',
-  'tex',
   'urls',
   'alias',
 ]);
 
-/** Unmodeled, non-language raw keys that carry real content — visible only in the full-entry preview. */
+/** Unmodeled raw keys that carry real content — visible only in the full-entry preview. */
 export function extraRawKeys(c: Concept): string[] {
   const raw = c.raw ?? {};
-  return Object.keys(raw).filter(
-    (k) => !MODELED_RAW_KEYS.has(k) && !ISO6391.validate(k) && raw[k] != null && raw[k] !== '',
-  );
+  return Object.keys(raw).filter((k) => !MODELED_RAW_KEYS.has(k) && raw[k] != null && raw[k] !== '');
 }
 
-/** Languages with non-empty speech other than the one the table is currently showing. */
+/** Languages with a non-empty reading other than the one the table is currently showing. */
 function hiddenLangs(c: Concept, displayLang: string): string[] {
-  const present: string[] = [];
-  if (c.en?.trim()) present.push('en');
-  for (const s of c.speech ?? []) if (s.text?.trim()) present.push(s.lang);
-  return present.filter((l) => l !== displayLang);
+  return c.speech
+    .filter((s) => s.readings.some((r) => r.text.trim() !== ''))
+    .map((s) => s.lang)
+    .filter((l) => l !== displayLang);
 }
 
 /**
@@ -58,15 +54,20 @@ export function changedFields(base: Concept, c: Concept): Set<string> {
   const cmp = (k: string, a: unknown, b: unknown) => {
     if (JSON.stringify(a ?? null) !== JSON.stringify(b ?? null)) s.add(k);
   };
+  cmp('intent', base.intent, c.intent);
   cmp('area', base.area, c.area);
   cmp('property', base.property, c.property);
+  cmp('comment', base.comment, c.comment);
   cmp('notations', base.notations, c.notations);
   cmp('links', base.links, c.links);
   cmp('alias', base.alias, c.alias);
-  cmp('speech:en', base.en, c.en);
-  const langs = new Set([...(base.speech ?? []), ...(c.speech ?? [])].map((x) => x.lang));
+  const langs = new Set([...base.speech, ...c.speech].map((x) => x.lang));
   for (const lang of langs) {
-    cmp(`speech:${lang}`, base.speech?.find((x) => x.lang === lang)?.text, c.speech?.find((x) => x.lang === lang)?.text);
+    cmp(
+      `speech:${lang}`,
+      base.speech.find((x) => x.lang === lang)?.readings,
+      c.speech.find((x) => x.lang === lang)?.readings,
+    );
   }
   return s;
 }
@@ -81,6 +82,7 @@ export function hasHiddenInfo(c: Concept, displayLang: string): boolean {
     c.notations.length > 1 ||
     hiddenLangs(c, displayLang).length > 0 ||
     c.alias.length > 0 ||
+    !!c.comment?.trim() ||
     extraRawKeys(c).length > 0
   );
 }
