@@ -652,7 +652,7 @@ export function NotationEditor({
               />
             </div>
             <label className="field">
-              <span>Area</span>
+              <span>Subject area</span>
               <input value={area} onChange={(e) => setArea(e.target.value)} />
             </label>
             <div className="field">

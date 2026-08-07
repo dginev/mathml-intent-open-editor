@@ -102,7 +102,7 @@ const columns = [
       return text.trim() !== '' ? <span lang={lang}>{text}</span> : null;
     },
   }),
-  columnHelper.accessor('area', { header: 'Area', size: 180 }),
+  columnHelper.accessor('area', { header: 'Subject area', size: 180 }),
   columnHelper.display({
     id: 'notation',
     header: 'Notation',

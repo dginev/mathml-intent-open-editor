@@ -7,7 +7,7 @@ type RawEntry = Record<string, unknown> & {
   concept?: string;
   intent?: string;
   speech?: Record<string, unknown>;
-  area?: string | null;
+  subject_area?: string | null;
   property?: string;
   comment?: string;
   notations?: Array<Record<string, unknown>>;
@@ -66,7 +66,8 @@ function normalize(e: RawEntry): Concept {
     // `urls`/`alias` are sets — de-duplicate on read so the model (and the next Save's diff) is clean.
     links: uniq(asArray(e.urls)),
     alias: uniq(asArray(e.alias)),
-    area: typeof e.area === 'string' ? e.area.trim() || undefined : undefined,
+    // On-disk key is `subject_area`; we keep the internal field named `area` (cf. urls→links).
+    area: typeof e.subject_area === 'string' ? e.subject_area.trim() || undefined : undefined,
     property: typeof e.property === 'string' ? e.property : undefined,
     comment: typeof e.comment === 'string' ? e.comment : undefined,
     raw: e,

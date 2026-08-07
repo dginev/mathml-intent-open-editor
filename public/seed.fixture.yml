@@ -7,7 +7,7 @@
     en:
       - default: abelian category
   property: symbol
-  area: category theory
+  subject_area: category theory
   urls:
     - https://mathworld.wolfram.com/AbelianCategory.html
   notations:
@@ -20,7 +20,7 @@
     fr:
       - default: opposé de $value
   property: prefix
-  area: algebra
+  subject_area: algebra
   notations:
     - mathml: <math><mrow intent='additive-inverse($value)'><mo>-</mo><mi arg='value'>n</mi></mrow></math>
 - concept: disjoint-union
@@ -29,7 +29,7 @@
     en:
       - default: disjoint union over $set
   property: prefix
-  area: set theory
+  subject_area: set theory
   comment: also written with a large square-cup operator
   notations:
     - mathml: <math><mrow intent='disjoint-union($set)'><mo>⊔</mo><mi arg='set'>A</mi></mrow></math>
@@ -39,7 +39,7 @@
     en:
       - default: disjoint union of $a and $b
   property: infix
-  area: set theory
+  subject_area: set theory
   notations:
     - mathml: <math><mrow intent='disjoint-union($a,$b)'><mi arg='a'>A</mi><mo>⊔</mo><mi arg='b'>B</mi></mrow></math>
 - concept: factorial
@@ -48,7 +48,7 @@
     en:
       - default: $n factorial
   property: postfix
-  area: combinatorics
+  subject_area: combinatorics
   notations:
     - mathml: <math><mrow intent='factorial($n)'><mi arg='n'>n</mi><mo>!</mo></mrow></math>
 - concept: imaginary-unit
@@ -56,7 +56,7 @@
     en:
       - default: imaginary unit
   property: symbol
-  area: complex analysis
+  subject_area: complex analysis
   notations:
     - mathml: <math><mi intent='imaginary-unit'>i</mi></math>
 - concept: power
@@ -67,7 +67,7 @@
     de:
       - default: $base hoch $exponent
   property: indexed
-  area: arithmetic
+  subject_area: arithmetic
   urls:
     - https://en.wikipedia.org/wiki/Exponentiation
   alias:
@@ -80,7 +80,7 @@
     en:
       - default: ratio of $a to $b
   property: infix
-  area: arithmetic
+  subject_area: arithmetic
   notations:
     - mathml: <math><mfrac intent='ratio($a,$b)'><mi arg='a'>a</mi><mi arg='b'>b</mi></mfrac></math>
 - concept: square-root
@@ -89,6 +89,6 @@
     en:
       - default: square root of $value
   property: prefix
-  area: arithmetic
+  subject_area: arithmetic
   notations:
     - mathml: <math><msqrt intent='square-root($value)'><mi arg='value'>x</mi></msqrt></math>
