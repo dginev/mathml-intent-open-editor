@@ -3,11 +3,11 @@ import type { Concept } from '../types';
 import { conceptArity } from '../types';
 
 /** Canonical on-disk key order for a record. Unknown `raw` keys (if any) trail after these. */
-const FIELD_ORDER = ['concept', 'intent', 'speech', 'property', 'area', 'urls', 'alias', 'comment', 'notations'];
+const FIELD_ORDER = ['concept', 'intent', 'speech', 'property', 'subject_area', 'urls', 'alias', 'comment', 'notations'];
 
 /** Legacy / superseded keys we never re-emit — dropped from `raw` on write. */
 const DROP_KEYS = [
-  'arity', 'en', 'mathml', 'tex', 'comments',
+  'arity', 'en', 'area', 'mathml', 'tex', 'comments',
   'notation', 'notationa', 'notationb', 'notationc', 'notationd',
 ];
 
@@ -66,7 +66,7 @@ export function serializeConcepts(concepts: Concept[]): string {
     setOrDelete(e, 'speech', Object.keys(speech).length ? speech : undefined);
 
     setOrDelete(e, 'property', c.property);
-    setOrDelete(e, 'area', c.area);
+    setOrDelete(e, 'subject_area', c.area);
     setOrDelete(e, 'urls', c.links);
     setOrDelete(e, 'alias', c.alias);
     setOrDelete(e, 'comment', c.comment);

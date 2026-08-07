@@ -8,7 +8,7 @@ const SAMPLE_YAML = w3cYaml([
     concept: 'power',
     intent: 'power($base,$exponent)',
     speech: { en: [{ default: '$base to the $exponent' }] },
-    area: 'arithmetic',
+    subject_area: 'arithmetic',
     notations: [
       { mathml: "<math><msup intent='power($base,$exponent)'><mi arg='base'>x</mi><mi arg='exponent'>n</mi></msup></math>" },
     ],
@@ -18,7 +18,7 @@ const SAMPLE_YAML = w3cYaml([
   {
     concept: 'abelian-category',
     speech: { en: [{ default: 'abelian category' }] },
-    area: '',
+    subject_area: '',
     notations: [{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }],
   },
 ]);

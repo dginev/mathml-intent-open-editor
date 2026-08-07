@@ -9,7 +9,7 @@ describe('parseDictionary (open.yml schema)', () => {
       {
         concept: 'abelian-category',
         property: 'symbol',
-        area: 'category theory',
+        subject_area: 'category theory',
         speech: { en: [{ default: 'abelian category' }] },
         notations: [{ mathml: "<math><mi intent='abelian-category'>Ab</mi></math>" }],
         urls: ['https://example.org/a'],
